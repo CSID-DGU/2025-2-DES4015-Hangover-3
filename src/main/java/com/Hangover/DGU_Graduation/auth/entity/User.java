@@ -6,19 +6,38 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "users")
 public class User {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(unique = true, nullable = false)
     private String email;
 
+    @Column(nullable = false)
     private String password;
 
-    private boolean enabled = false; // 이메일 인증 전까지 false
+    private String name;
+    /**
+     * 계정 활성화 여부
+     * - 회원가입 직후: false (이메일 인증 필요)
+     * - 이메일 인증 완료: true
+     * - 회원탈퇴 시: false + deletedAt 기록
+     */
+    private boolean enabled = false;
+
+    /**
+     * 회원 탈퇴 일시
+     * - null이면 정상 계정
+     * - 값이 있으면 탈퇴 처리된 계정
+     */
+    private LocalDateTime deletedAt;
 }

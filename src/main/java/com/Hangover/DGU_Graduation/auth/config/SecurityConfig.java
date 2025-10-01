@@ -35,10 +35,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         // 인증 없이 허용할 엔드포인트
-                        .requestMatchers("/api/auth/signup").permitAll()
-                        .requestMatchers("/api/auth/login").permitAll()
-                        .requestMatchers("/api/auth/verify").permitAll()
-                        .requestMatchers("/h2-console/**").permitAll()
+                        .requestMatchers("/v1/auth/signup").permitAll()
+                        .requestMatchers("/v1/auth/login").permitAll()
+                        .requestMatchers("/v1/auth/verify/**").permitAll()
                         .requestMatchers("/error").permitAll() // 🚨 중요: /error 열기
 
                         // 그 외는 JWT 인증 필요

@@ -11,6 +11,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -27,6 +28,11 @@ public class UserService {
 
     // 회원가입
     public void registerUser(String email, String password){
+        if (!email.endsWith("@dgu.ac.kr")) {
+            throw new IllegalArgumentException("동국대학교 이메일(@dgu.ac.kr)만 가입할 수 있습니다.");
+        }
+
+
         if (userRepository.findByEmail(email).isPresent()) {
             throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
         }
@@ -44,7 +50,7 @@ public class UserService {
         vToken.setExpiryDate(LocalDateTime.now().plusHours(24));
         verificationTokenRepository.save(vToken);
 
-        String link = "http://localhost:8081/api/auth/verify?token=" + token;
+        String link = "http://localhost:8081/v1/auth/verify?token=" + token;
         sendVerificationEmail(email, link);
     }
 
@@ -103,4 +109,15 @@ public class UserService {
 
         return jwtProvider.generateToken(user.getEmail());
     }
+
+    @Transactional
+    public void withdraw(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("사용자 없음"));
+
+        user.setEnabled(false);
+        user.setDeletedAt(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
 }
