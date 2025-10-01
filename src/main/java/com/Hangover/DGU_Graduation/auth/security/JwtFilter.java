@@ -14,7 +14,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.ArrayList;
 
 @Component
 @RequiredArgsConstructor
@@ -31,13 +30,16 @@ public class JwtFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
 
-            if(jwtProvider.validateToken(token)){
-                String email = jwtProvider.getEmailFromToken(token);
+            if(jwtProvider.isVaild(token)){
+                String email = jwtProvider.getSubject(token);
                 User user = userRepository.findByEmail(email)
                         .orElseThrow(() -> new UsernameNotFoundException("사용자 없음"));
 
-            UsernamePasswordAuthenticationToken auth =
-                    new UsernamePasswordAuthenticationToken(user, null, new ArrayList<>());
+                UserPrincipal principal = UserPrincipal.from(user);
+
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                        principal, null, principal.getAuthorities()
+                );
 
             SecurityContextHolder.getContext().setAuthentication(auth);
             }

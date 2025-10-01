@@ -1,11 +1,15 @@
 package com.Hangover.DGU_Graduation.auth.service;
 
+import com.Hangover.DGU_Graduation.auth.dto.JwtResponse;
+import com.Hangover.DGU_Graduation.auth.entity.RefreshToken;
 import com.Hangover.DGU_Graduation.auth.entity.User;
 import com.Hangover.DGU_Graduation.auth.entity.VerificationToken;
+import com.Hangover.DGU_Graduation.auth.repository.RefreshTokenRepository;
 import com.Hangover.DGU_Graduation.auth.repository.UserRepository;
 import com.Hangover.DGU_Graduation.auth.repository.VerificationTokenRepository;
 import com.Hangover.DGU_Graduation.auth.security.JwtProvider;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -18,29 +22,37 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class UserService {
 
     private final UserRepository userRepository;
     private final VerificationTokenRepository verificationTokenRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
     private final JwtProvider jwtProvider;
 
-    // 회원가입
+    @Value("${app.host.url}")
+    private String appHostUrl;
+
+    @Value("${app.mail.from}")
+    private String appMailFrom;
+
+    // 회원가입 (이메일 인증 토큰만 생성)
+    @Transactional
     public void registerUser(String email, String password){
         if (!email.endsWith("@dgu.ac.kr")) {
             throw new IllegalArgumentException("동국대학교 이메일(@dgu.ac.kr)만 가입할 수 있습니다.");
         }
-
-
         if (userRepository.findByEmail(email).isPresent()) {
             throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
         }
 
-        User user = new User();
-        user.setEmail(email);
-        user.setPassword(passwordEncoder.encode(password));
-        user.setEnabled(false);
+        User user = User.builder()
+                .email(email)
+                .password(passwordEncoder.encode(password))
+                .enabled(false)
+                .build();
         userRepository.save(user);
 
         String token = UUID.randomUUID().toString();
@@ -50,74 +62,107 @@ public class UserService {
         vToken.setExpiryDate(LocalDateTime.now().plusHours(24));
         verificationTokenRepository.save(vToken);
 
-        String link = "http://localhost:8081/v1/auth/verify?token=" + token;
-        sendVerificationEmail(email, link);
+        sendVerificationEmail(email, token);
     }
 
-    // 인증 메일 발송
-    private void sendVerificationEmail(String email, String link){
-        try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(email);
-            message.setSubject("[동국대 학점관리 서비스] 이메일 인증 안내");
-            message.setText(
-                    "안녕하세요, 동국대 학점관리 웹서비스입니다.\n\n" +
-                            "회원가입을 완료하기 위해 이메일 인증이 필요합니다.\n" +
-                            "아래 링크를 클릭하시면 인증이 완료됩니다:\n\n" +
-                            link + "\n\n" +
-                            "⚠️ 본 메일은 발신 전용이므로 회신하지 마세요.\n" +
-                            "만약 본인이 회원가입을 시도하지 않았다면, 이 메일은 무시하셔도 됩니다.\n\n" +
-                            "감사합니다."
-            );
-            message.setFrom("hyl02415@gmail.com");
-            mailSender.send(message);
+    private void sendVerificationEmail(String email, String token){
+        String link = appHostUrl + "/v1/auth/verify?token=" + token;
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(email);
+        message.setSubject("[동국대 학점관리 서비스] 이메일 인증 안내");
+        message.setText("""
+                안녕하세요, 동국대 학점관리 웹서비스입니다.
 
-            System.out.println("✅ [DEBUG] 메일 전송 성공 -> " + email);
+                회원가입을 완료하기 위해 이메일 인증이 필요합니다.
+                아래 링크를 클릭하시면 인증이 완료됩니다:
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("메일 발송 실패: " + e.getMessage(), e);
-        }
+                %s
+
+                ⚠️ 본 메일은 발신 전용입니다.
+                """.formatted(link));
+        message.setFrom(appMailFrom);
+        mailSender.send(message);
     }
 
     // 이메일 인증
+    @Transactional
     public void verifyUser(String token){
-        VerificationToken vToken = verificationTokenRepository.findByToken(token)
+        var vToken = verificationTokenRepository.findByToken(token)
                 .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 토큰입니다."));
-
         if (vToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException("토큰이 만료되었습니다.");
         }
-
         User user = vToken.getUser();
         user.setEnabled(true);
         userRepository.save(user);
+        // 사용한 인증 토큰은 제거(선택)
+        verificationTokenRepository.delete(vToken);
     }
 
-    // 로그인
-    public String login(String email, String password){
+    // 로그인: access + refresh 발급
+    @Transactional
+    public JwtResponse login(String email, String rawPassword){
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("사용자 없음"));
+        if (!user.isEnabled()) throw new IllegalStateException("이메일 인증이 필요합니다.");
+        if (!passwordEncoder.matches(rawPassword, user.getPassword()))
+            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+
+        String access = jwtProvider.generateAccessToken(user.getEmail());
+        String refresh = jwtProvider.generateRefreshToken(user.getEmail());
+
+        // 기존 refresh 갱신(있으면 교체)
+        refreshTokenRepository.findByUser(user)
+                .ifPresentOrElse(
+                        rt -> rt.rotate(refresh),
+                        () -> refreshTokenRepository.save(
+                                RefreshToken.builder().user(user).token(refresh).build()
+                        )
+                );
+
+        return new JwtResponse(access, refresh);
+    }
+
+    // 토큰 재발급
+    @Transactional
+    public JwtResponse reissue(String refreshToken){
+        if (!jwtProvider.isVaild(refreshToken)) {
+            throw new IllegalArgumentException("리프레시 토큰이 유효하지 않습니다.");
+        }
+        String email = jwtProvider.getSubject(refreshToken);
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("사용자 없음"));
 
-        if (!user.isEnabled()) {
-            throw new IllegalStateException("이메일 인증이 필요합니다.");
+        // 저장된 refresh 와 동일한지 확인
+        var saved = refreshTokenRepository.findByUser(user)
+                .orElseThrow(() -> new IllegalStateException("저장된 리프레시 토큰이 없습니다."));
+        if (!saved.getToken().equals(refreshToken)) {
+            throw new IllegalStateException("리프레시 토큰이 일치하지 않습니다.");
         }
 
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
-        }
+        String newAccess = jwtProvider.generateAccessToken(email);
+        String newRefresh = jwtProvider.generateRefreshToken(email); // 회전(rotate) 전략
+        saved.rotate(newRefresh);
 
-        return jwtProvider.generateToken(user.getEmail());
+        return new JwtResponse(newAccess, newRefresh);
     }
 
+    // 로그아웃: refresh 삭제(블랙리스트 불필요)
     @Transactional
-    public void withdraw(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("사용자 없음"));
+    public void logout(String email) {
+        var user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("사용자 없음"));
+        refreshTokenRepository.deleteByUser(user);
+    }
 
+    // 회원탈퇴: id 기준 삭제가 안전
+    @Transactional
+    public void withdraw(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("사용자 없음"));
         user.setEnabled(false);
         user.setDeletedAt(LocalDateTime.now());
+        refreshTokenRepository.deleteByUser(user); // 보유 토큰 제거
         userRepository.save(user);
     }
-
 }

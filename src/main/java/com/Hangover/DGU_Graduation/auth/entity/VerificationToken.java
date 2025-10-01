@@ -1,3 +1,4 @@
+// 이메일관련 토큰
 package com.Hangover.DGU_Graduation.auth.entity;
 
 import jakarta.persistence.*;

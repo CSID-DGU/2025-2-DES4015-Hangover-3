@@ -35,13 +35,16 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         // 인증 없이 허용할 엔드포인트
-                        .requestMatchers("/v1/auth/signup").permitAll()
-                        .requestMatchers("/v1/auth/login").permitAll()
-                        .requestMatchers("/v1/auth/verify/**").permitAll()
-                        .requestMatchers("/error").permitAll() // 🚨 중요: /error 열기
-
-                        // 그 외는 JWT 인증 필요
-                        .anyRequest().authenticated()
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v1/auth/signup",
+                                "/v1/auth/login",
+                                "/v1/auth/verify/**",
+                                "/error").permitAll()
+                                // 그 외는 JWT 인증 필요
+                                .anyRequest().authenticated()
                 )
 
                 // JWT 필터를 UsernamePasswordAuthenticationFilter 앞에 추가

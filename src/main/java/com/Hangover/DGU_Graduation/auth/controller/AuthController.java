@@ -1,13 +1,13 @@
 package com.Hangover.DGU_Graduation.auth.controller;
 
+import com.Hangover.DGU_Graduation.auth.dto.JwtResponse;
 import com.Hangover.DGU_Graduation.auth.dto.LoginRequest;
-import com.Hangover.DGU_Graduation.auth.dto.SignUpRequest;
-import com.Hangover.DGU_Graduation.auth.service.TokenBlacklistService;
+import com.Hangover.DGU_Graduation.auth.dto.RefreshRequest;
+import com.Hangover.DGU_Graduation.auth.security.UserPrincipal;
 import com.Hangover.DGU_Graduation.auth.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -15,11 +15,10 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final TokenBlacklistService tokenBlacklistService;
     private final UserService userService;
 
     @PostMapping("/signup")
-    public ResponseEntity<String> register(@RequestBody SignUpRequest req){
+    public ResponseEntity<String> register(@RequestBody LoginRequest req){
         userService.registerUser(req.getEmail(), req.getPassword());
         return ResponseEntity.ok("회원가입 성공! 이메일을 확인하세요.");
     }
@@ -31,23 +30,24 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody LoginRequest req){
-        String jwt = userService.login(req.getEmail(), req.getPassword());
-        return ResponseEntity.ok(jwt);
+    public ResponseEntity<JwtResponse> login(@RequestBody LoginRequest req){
+        return ResponseEntity.ok(userService.login(req.getEmail(), req.getPassword()));
     }
 
-    // ✅ 회원탈퇴 (본인 기준)
+    @PostMapping("/refresh")
+    public ResponseEntity<JwtResponse> refresh(@RequestBody RefreshRequest req){
+        return ResponseEntity.ok(userService.reissue(req.getRefreshToken()));
+    }
+
     @DeleteMapping("/user/me")
-    public ResponseEntity<String> withdraw(@AuthenticationPrincipal UserDetails userDetails) {
-        userService.withdraw(userDetails.getUsername());
-        return ResponseEntity.ok("회원탈퇴 완료");
+    public ResponseEntity<Void> withdraw(@AuthenticationPrincipal UserPrincipal principal) {
+        userService.withdraw(principal.getUser().getId());
+        return ResponseEntity.noContent().build();
     }
 
-    // ✅ 로그아웃 (선택적으로 블랙리스트 처리)
     @PostMapping("/logout")
-    public ResponseEntity<String> logout(@RequestHeader("Authorization") String authHeader) {
-        // 프론트에서는 토큰 삭제, 서버는 블랙리스트 적용 가능
-        return ResponseEntity.ok("로그아웃 성공");
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal UserPrincipal principal) {
+        userService.logout(principal.getUsername());
+        return ResponseEntity.noContent().build();
     }
-
 }
