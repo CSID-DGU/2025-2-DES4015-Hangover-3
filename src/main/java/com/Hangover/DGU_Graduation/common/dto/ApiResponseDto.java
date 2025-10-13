@@ -3,6 +3,7 @@ package com.Hangover.DGU_Graduation.common.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.springframework.http.HttpStatus;
 
 /**
  * 공통 성공 응답
@@ -20,8 +21,16 @@ public class ApiResponseDto<T> {
     @Schema(description = "실제 데이터")
     private T data;
 
-    public static <T> ApiResponseDto<T> success(String message, T data) {
-        return new ApiResponseDto<>(200, message, data); //성공은 200으로 통일
+    // --- 정적 팩토리 메서드 ---
+
+    /**
+     * 성공 응답 (상태 코드 지정, 메시지는 기본 "성공")
+     */
+    public static <T> ApiResponseDto<T> success(int status, T data) {
+        return new ApiResponseDto<>(status, "성공", data);
     }
 
+    public static <T> ApiResponseDto<T> success(int status, String message, T data) {
+        return new ApiResponseDto<>(status, message, data);
+    }
 }
