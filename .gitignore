@@ -36,5 +36,4 @@ out/
 ### VS Code ###
 .vscode/
 
-### Spring Boot Config ###
-src/main/resources/*.yml
+application-local.yml
