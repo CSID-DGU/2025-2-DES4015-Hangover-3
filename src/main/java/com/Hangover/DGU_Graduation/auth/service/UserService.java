@@ -4,10 +4,12 @@ import com.Hangover.DGU_Graduation.auth.dto.JwtResponse;
 import com.Hangover.DGU_Graduation.auth.entity.RefreshToken;
 import com.Hangover.DGU_Graduation.auth.entity.User;
 import com.Hangover.DGU_Graduation.auth.entity.VerificationToken;
+import com.Hangover.DGU_Graduation.auth.exception.UserException;
 import com.Hangover.DGU_Graduation.auth.repository.RefreshTokenRepository;
 import com.Hangover.DGU_Graduation.auth.repository.UserRepository;
 import com.Hangover.DGU_Graduation.auth.repository.VerificationTokenRepository;
 import com.Hangover.DGU_Graduation.auth.security.JwtProvider;
+import com.Hangover.DGU_Graduation.common.exception.CustomException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
@@ -16,9 +18,9 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.UUID;
+import static com.Hangover.DGU_Graduation.auth.exception.UserErrorCode.*;
 
 @Service
 @RequiredArgsConstructor
@@ -42,10 +44,10 @@ public class UserService {
     @Transactional
     public void registerUser(String email, String password){
         if (!email.endsWith("@dgu.ac.kr")) {
-            throw new IllegalArgumentException("동국대학교 이메일(@dgu.ac.kr)만 가입할 수 있습니다.");
+            throw new UserException(INVALID_INPUT_EMAIL,"동국대 이메일만 가능합니다.");
         }
         if (userRepository.findByEmail(email).isPresent()) {
-            throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
+            throw new UserException(ALREADY_JOINED, "이미 사용 중인 이메일입니다.");
         }
 
         User user = User.builder()
@@ -102,11 +104,10 @@ public class UserService {
     // 로그인: access + refresh 발급
     @Transactional
     public JwtResponse login(String email, String rawPassword){
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("사용자 없음"));
-        if (!user.isEnabled()) throw new IllegalStateException("이메일 인증이 필요합니다.");
+        User user = findUserByEmail(email);
+        if (!user.isEnabled()) throw new CustomException(EMAIL_VERIFICATION_REQUIRED, "이메일 인증이 필요합니다.");
         if (!passwordEncoder.matches(rawPassword, user.getPassword()))
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+            throw new CustomException(PASSWORD_NOT_EQUAL, "비밀번호가 일치하지 않습니다.");
 
         String access = jwtProvider.generateAccessToken(user.getEmail());
         String refresh = jwtProvider.generateRefreshToken(user.getEmail());
@@ -127,17 +128,15 @@ public class UserService {
     @Transactional
     public JwtResponse reissue(String refreshToken){
         if (!jwtProvider.isVaild(refreshToken)) {
-            throw new IllegalArgumentException("리프레시 토큰이 유효하지 않습니다.");
+            throw new CustomException(EXPIRED_REFRESH_TOKEN, "리프레시 토큰이 유효하지 않습니다.");
         }
         String email = jwtProvider.getSubject(refreshToken);
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("사용자 없음"));
-
+        User user = findUserByEmail(email);
         // 저장된 refresh 와 동일한지 확인
         var saved = refreshTokenRepository.findByUser(user)
-                .orElseThrow(() -> new IllegalStateException("저장된 리프레시 토큰이 없습니다."));
+                .orElseThrow(() -> new CustomException(TOKEN_NOT_FOUND, "저장된 리프레시 토큰이 없습니다."));
         if (!saved.getToken().equals(refreshToken)) {
-            throw new IllegalStateException("리프레시 토큰이 일치하지 않습니다.");
+            throw new CustomException(TOKEN_MISMATCH,"리프레시 토큰이 일치하지 않습니다.");
         }
 
         String newAccess = jwtProvider.generateAccessToken(email);
@@ -150,19 +149,31 @@ public class UserService {
     // 로그아웃: refresh 삭제(블랙리스트 불필요)
     @Transactional
     public void logout(String email) {
-        var user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("사용자 없음"));
+        User user = findUserByEmail(email);
         refreshTokenRepository.deleteByUser(user);
     }
 
     // 회원탈퇴: id 기준 삭제가 안전
     @Transactional
     public void withdraw(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자 없음"));
+        User user = findUserById(userId);
         user.setEnabled(false);
         user.setDeletedAt(LocalDateTime.now());
         refreshTokenRepository.deleteByUser(user); // 보유 토큰 제거
         userRepository.save(user);
+    }
+
+
+    /**
+     * private 메소드로 구분
+     */
+    private User findUserByEmail(String email){
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(USER_NOT_FOUND, "사용자 없음"));
+
+    }
+    private User findUserById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(USER_NOT_FOUND, "사용자 없음"));
     }
 }
