@@ -34,7 +34,7 @@ public class SecurityConfig {
     public AuthenticationEntryPoint restAuthenticationEntryPoint() {
         // 401 Unauthorized (인증 필요/실패)
         return (request, response, authException) -> {
-            ErrorResponse body = new ErrorResponse(401, "S002", "인증이 필요합니다.");
+            ErrorResponse body = new ErrorResponse("S002", "인증이 필요합니다.");
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
@@ -46,7 +46,7 @@ public class SecurityConfig {
     public AccessDeniedHandler restAccessDeniedHandler() {
         // 403 Forbidden (인가 거부)
         return (request, response, accessDeniedException) -> {
-            ErrorResponse body = new ErrorResponse(403, "S001", "접근 권한이 없습니다.");
+            ErrorResponse body = new ErrorResponse( "S001", "접근 권한이 없습니다.");
             response.setStatus(HttpStatus.FORBIDDEN.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding(StandardCharsets.UTF_8.name());

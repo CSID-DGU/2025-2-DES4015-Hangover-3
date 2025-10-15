@@ -61,7 +61,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(400, "C001", topMessage));
+                .body(new ErrorResponse("C001", topMessage));
     }
 
     //지원하지 않는 메서드
@@ -70,7 +70,7 @@ public class GlobalExceptionHandler {
         log.warn("Method not supported: {}", e.getMethod());
         return ResponseEntity
                 .status(HttpStatus.METHOD_NOT_ALLOWED)
-                .body(new ErrorResponse(405, "M001", "지원하지 않는 HTTP 메서드입니다."));
+                .body(new ErrorResponse( "M001", "지원하지 않는 HTTP 메서드입니다."));
     }
 
     // JSON parse 에러
@@ -79,7 +79,7 @@ public class GlobalExceptionHandler {
         log.warn("Message not readable: {}", e.getMessage());
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(400, "J001", "잘못된 요청 형식입니다."));
+                .body(new ErrorResponse( "J001", "잘못된 요청 형식입니다."));
     }
 
     // 예상 못한 예외 (서버 에러)
@@ -88,7 +88,7 @@ public class GlobalExceptionHandler {
         log.error("Unexpected exception", e);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse(500, "E999", "서버 내부 오류가 발생했습니다."));
+                .body(new ErrorResponse( "E999", "서버 내부 오류가 발생했습니다."));
     }
 
     // 유틸: 민감값 마스킹

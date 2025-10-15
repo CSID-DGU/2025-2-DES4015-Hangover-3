@@ -76,7 +76,7 @@ public class ResponseInterceptor implements ResponseBodyAdvice<Object> {
         // String 특수 처리 문자열 응답도 공통응답(JSON)으로
         if (StringHttpMessageConverter.class.isAssignableFrom(selectedConverterType)
                 || returnType.getParameterType() == String.class) {
-            ApiResponseDto<Object> apiResponse = ApiResponseDto.success(status, body);
+            ApiResponseDto<Object> apiResponse = ApiResponseDto.success(body);
             response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
             try { return objectMapper.writeValueAsString(apiResponse); }
             catch (JsonProcessingException e) { throw new IllegalStateException("serialize ApiResponseDto", e); }
@@ -97,6 +97,6 @@ public class ResponseInterceptor implements ResponseBodyAdvice<Object> {
         }
 
         // 정상 응답 래핑 (성공 공통응답 처리기)
-        return ApiResponseDto.success(status, body);
+        return ApiResponseDto.success(body);
     }
 }

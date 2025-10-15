@@ -21,8 +21,8 @@ public enum UserErrorCode implements ErrorCode {
     EXPIRED_REFRESH_TOKEN(401, "T002", "Refresh Token이 만료되었습니다."),
     INVALID_ACCESS_TOKEN(401, "T003", "유효하지 않은 Access Token입니다."),
     INVALID_REFRESH_TOKEN(401, "T004", "유효하지 않은 Refresh Token입니다."),
-    TOKEN_NOT_FOUND(400, "T005", "요청에 토큰이 존재하지 않습니다."),
-    TOKEN_MISMATCH(403, "T006", "Refresh Token이 서버에 저장된 정보와 일치하지 않습니다.");
+    TOKEN_NOT_FOUND(401, "T005", "요청에 토큰이 존재하지 않습니다."),
+    TOKEN_MISMATCH(401, "T006", "Refresh Token이 서버에 저장된 정보와 일치하지 않습니다.");
 
     private final int status;
     private final String code;
