@@ -1,6 +1,7 @@
 package com.Hangover.DGU_Graduation.common.controller;
 import com.Hangover.DGU_Graduation.common.dto.ErrorResponse;
 import com.Hangover.DGU_Graduation.common.exception.CustomException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -31,12 +33,18 @@ public class GlobalExceptionHandler {
 
     // 1)팀 커스텀 예외
     @ExceptionHandler(CustomException.class)
-    public ResponseEntity<ErrorResponse> handleCustomException(CustomException e) {
-        log.warn("CustomException: code={}, msg={}", e.getErrorCode().getCode(), e.getMessage());
+    public ResponseEntity<ErrorResponse> handleCustomException(CustomException e,
+                                                               HttpServletRequest req) {
+        var ec = e.getErrorCode();
+
+        log.warn("CustomException: code={}, status={}, msg={}, path={}, method={}",
+                ec.getCode(), ec.getStatus(), e.getMessage(), req.getRequestURI(), req.getMethod());
+
         return ResponseEntity
-                .status(e.getErrorCode().getStatus())
-                .contentType(MediaType.APPLICATION_JSON) //JSON 형태
-                .body(ErrorResponse.of(e.getErrorCode()));
+                .status(ec.getStatus())
+                .contentType(new MediaType(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8))
+                // 커스텀 메시지(e.getMessage())가 응답에 반영되도록
+                .body(new ErrorResponse(ec.getCode(), e.getMessage()));
     }
 
     // 2) @Valid 바디 검증 실패

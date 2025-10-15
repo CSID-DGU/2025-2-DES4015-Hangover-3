@@ -19,6 +19,8 @@ import com.Hangover.DGU_Graduation.common.dto.ApiResponseDto;
 import com.Hangover.DGU_Graduation.common.dto.ErrorResponse;
 import lombok.RequiredArgsConstructor;
 
+import java.nio.charset.StandardCharsets;
+
 
 @RestControllerAdvice
 @RequiredArgsConstructor
@@ -61,7 +63,7 @@ public class ResponseInterceptor implements ResponseBodyAdvice<Object> {
 
         // 에러 바디/이미 공통응답은 그대로 통과
         if (body instanceof ErrorResponse) {
-            // 에러는 전역 예외처리기에서 책임 → 여기선 패스
+            // String 컨버터로 내려가는 경우엔 JSON 문자열화
             if (StringHttpMessageConverter.class.isAssignableFrom(selectedConverterType)
                     || returnType.getParameterType() == String.class) {
                 response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
@@ -74,7 +76,7 @@ public class ResponseInterceptor implements ResponseBodyAdvice<Object> {
             return body; // 컨트롤러에서 직접 래핑한 경우 이중 래핑 방지
         }
 
-        // 2xx 상태는 래핑하지 않음 (의도적 에러/리다이렉트 포맷 보존)
+        // 2xx 이외의 상태는 래핑하지 않음 (의도적 에러/리다이렉트 포맷 보존)
         if (status < 200 || status >= 300) {
             return body;
         }
@@ -97,7 +99,7 @@ public class ResponseInterceptor implements ResponseBodyAdvice<Object> {
             return body;
         }
 
-        // String 특수 처리: 컨텐트타입이 무엇이든 "항상" 공통응답으로 감싸고 JSON 문자열로 반환
+        // String 특수 처리: 항상 JSON으로 감싸고 문자열화
         if (StringHttpMessageConverter.class.isAssignableFrom(selectedConverterType)
                 || returnType.getParameterType() == String.class) {
             ApiResponseDto<Object> apiResponse = ApiResponseDto.success(body);
@@ -107,7 +109,8 @@ public class ResponseInterceptor implements ResponseBodyAdvice<Object> {
         }
 
         // 그 외(Jackson 등)도 무조건 JSON 공통응답으로 감싸고, Content-Type을 JSON으로 강제
-        response.getHeaders().setContentType(MediaType.APPLICATION_JSON); // 강제 JSON
+        response.getHeaders().setContentType(new MediaType(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8));
         return ApiResponseDto.success(body);
+
     }
 }
