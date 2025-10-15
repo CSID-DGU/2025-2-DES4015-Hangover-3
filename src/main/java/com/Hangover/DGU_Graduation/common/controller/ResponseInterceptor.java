@@ -14,10 +14,11 @@ import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpResponse;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice; // ✅ MVC용
+import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 import com.Hangover.DGU_Graduation.common.dto.ApiResponseDto;
 import com.Hangover.DGU_Graduation.common.dto.ErrorResponse;
 import lombok.RequiredArgsConstructor;
+
 
 @RestControllerAdvice
 @RequiredArgsConstructor
@@ -73,30 +74,40 @@ public class ResponseInterceptor implements ResponseBodyAdvice<Object> {
             return body; // 컨트롤러에서 직접 래핑한 경우 이중 래핑 방지
         }
 
-        // String 특수 처리 문자열 응답도 공통응답(JSON)으로
+        // 2xx 상태는 래핑하지 않음 (의도적 에러/리다이렉트 포맷 보존)
+        if (status < 200 || status >= 300) {
+            return body;
+        }
+
+        // PDF / 일반 바이너리는 항상 패스 (파일 전송 보존)
+        final String subtype = selectedContentType.getSubtype();
+        boolean isPdfLike = MediaType.APPLICATION_PDF.includes(selectedContentType) || MediaType.APPLICATION_OCTET_STREAM.includes(selectedContentType);
+        if (isPdfLike) {
+            return body;
+        }
+
+        // 스트리밍/이벤트/리소스/바이너리는 패스 (깨지지 않게)
+        boolean isSse = MediaType.TEXT_EVENT_STREAM.includes(selectedContentType); // text/event-stream
+        boolean isNdjson = "x-ndjson".equalsIgnoreCase(subtype) || subtype.toLowerCase().contains("ndjson");
+        if (isSse || isNdjson
+                || body instanceof byte[]
+                || body instanceof org.springframework.core.io.Resource
+                || body instanceof org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody
+                || body instanceof org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter) {
+            return body;
+        }
+
+        // String 특수 처리: 컨텐트타입이 무엇이든 "항상" 공통응답으로 감싸고 JSON 문자열로 반환
         if (StringHttpMessageConverter.class.isAssignableFrom(selectedConverterType)
                 || returnType.getParameterType() == String.class) {
             ApiResponseDto<Object> apiResponse = ApiResponseDto.success(body);
-            response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+            response.getHeaders().setContentType(MediaType.APPLICATION_JSON); // 강제 JSON
             try { return objectMapper.writeValueAsString(apiResponse); }
             catch (JsonProcessingException e) { throw new IllegalStateException("serialize ApiResponseDto", e); }
         }
 
-        // JSON 계열(+json 서브타입 포함) 이외/스트리밍/바이너리는 제외
-        final String subtype = selectedContentType.getSubtype(); // non-null
-        boolean isJsonLike =
-                MediaType.APPLICATION_JSON.includes(selectedContentType)   // application/json
-                        || "json".equalsIgnoreCase(subtype)                          // */json
-                        || subtype.endsWith("+json");                                // */*+json (problem+json 등)
-
-        boolean isSse = MediaType.TEXT_EVENT_STREAM.includes(selectedContentType); // text/event-stream
-        boolean isNdjson = "x-ndjson".equalsIgnoreCase(subtype) || subtype.contains("ndjson");
-
-        if (!isJsonLike || isSse || isNdjson || body instanceof byte[]) {
-            return body;
-        }
-
-        // 정상 응답 래핑 (성공 공통응답 처리기)
+        // 그 외(Jackson 등)도 무조건 JSON 공통응답으로 감싸고, Content-Type을 JSON으로 강제
+        response.getHeaders().setContentType(MediaType.APPLICATION_JSON); // 강제 JSON
         return ApiResponseDto.success(body);
     }
 }
