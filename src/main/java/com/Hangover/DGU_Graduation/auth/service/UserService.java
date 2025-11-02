@@ -1,11 +1,9 @@
 package com.Hangover.DGU_Graduation.auth.service;
 
 import com.Hangover.DGU_Graduation.auth.dto.JwtResponse;
-import com.Hangover.DGU_Graduation.auth.entity.RefreshToken;
 import com.Hangover.DGU_Graduation.auth.entity.User;
 import com.Hangover.DGU_Graduation.auth.entity.VerificationToken;
 import com.Hangover.DGU_Graduation.auth.exception.UserException;
-import com.Hangover.DGU_Graduation.auth.repository.RefreshTokenRepository;
 import com.Hangover.DGU_Graduation.auth.repository.UserRepository;
 import com.Hangover.DGU_Graduation.auth.repository.VerificationTokenRepository;
 import com.Hangover.DGU_Graduation.auth.security.JwtProvider;
@@ -17,8 +15,12 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 import static com.Hangover.DGU_Graduation.auth.exception.UserErrorCode.*;
 
 @Service
@@ -28,7 +30,6 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final VerificationTokenRepository verificationTokenRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
     private final JwtProvider jwtProvider;
@@ -38,6 +39,8 @@ public class UserService {
 
     @Value("${app.mail.from}")
     private String appMailFrom;
+
+    private final Set<String> blacklistedTokens = ConcurrentHashMap.newKeySet();
 
     // 회원가입 (이메일 인증 토큰만 생성)
     @Transactional
@@ -96,7 +99,6 @@ public class UserService {
         User user = vToken.getUser();
         user.setEnabled(true);
         userRepository.save(user);
-        // 사용한 인증 토큰은 제거(선택)
         verificationTokenRepository.delete(vToken);
     }
 
@@ -111,14 +113,8 @@ public class UserService {
         String access = jwtProvider.generateAccessToken(user.getEmail());
         String refresh = jwtProvider.generateRefreshToken(user.getEmail());
 
-        // 기존 refresh 갱신(있으면 교체)
-        refreshTokenRepository.findByUser(user)
-                .ifPresentOrElse(
-                        rt -> rt.rotate(refresh),
-                        () -> refreshTokenRepository.save(
-                                RefreshToken.builder().user(user).token(refresh).build()
-                        )
-                );
+       user.setRefreshToken(refresh);
+       userRepository.save(user);
 
         return new JwtResponse(access, refresh);
     }
@@ -129,39 +125,40 @@ public class UserService {
         if (!jwtProvider.isVaild(refreshToken)) {
             throw new CustomException(EXPIRED_REFRESH_TOKEN, "리프레시 토큰이 유효하지 않습니다.");
         }
+
         String email = jwtProvider.getSubject(refreshToken);
         User user = findUserByEmail(email);
         // 저장된 refresh 와 동일한지 확인
-        var saved = refreshTokenRepository.findByUser(user)
-                .orElseThrow(() -> new CustomException(TOKEN_NOT_FOUND, "저장된 리프레시 토큰이 없습니다."));
-        if (!saved.getToken().equals(refreshToken)) {
-            throw new CustomException(TOKEN_MISMATCH,"리프레시 토큰이 일치하지 않습니다.");
-        }
+
+        if (user.getRefreshToken() == null)
+            throw new CustomException(TOKEN_NOT_FOUND, "저자오딘 리프래시 토큰이 없습니다.");
+
+        if (!user.getRefreshToken().equals(refreshToken))
+            throw new CustomException(TOKEN_MISMATCH, "리프래시 토큰이 일치하지 않습니다.");
 
         String newAccess = jwtProvider.generateAccessToken(email);
-        String newRefresh = jwtProvider.generateRefreshToken(email); // 회전(rotate) 전략
-        saved.rotate(newRefresh);
-
-        return new JwtResponse(newAccess, newRefresh);
+        return new JwtResponse(newAccess, refreshToken); // refresh 그대로 유지
     }
 
     // 로그아웃: refresh 삭제(블랙리스트 불필요)
     @Transactional
-    public void logout(String email) {
+    public void logout(String email, String accessToken) {
         User user = findUserByEmail(email);
-        refreshTokenRepository.deleteByUser(user);
+
+        if (blacklistedTokens.contains(accessToken))
+            throw new CustomException(INVALID_ACCESS_TOKEN, "이미 로그아웃된 사용자입니다.");
+
+        blacklistedTokens.add(accessToken);
+        user.setRefreshToken(null);
+        userRepository.save(user);
     }
 
     // 회원탈퇴: id 기준 삭제가 안전
     @Transactional
     public void withdraw(Long userId) {
         User user = findUserById(userId);
-        user.setEnabled(false);
-        user.setDeletedAt(LocalDateTime.now());
-        refreshTokenRepository.deleteByUser(user); // 보유 토큰 제거
-        userRepository.save(user);
+        userRepository.delete(user);
     }
-
 
     /**
      * private 메소드로 구분

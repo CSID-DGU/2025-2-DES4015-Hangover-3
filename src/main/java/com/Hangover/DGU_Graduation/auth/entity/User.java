@@ -39,4 +39,8 @@ public class User extends BaseTimeEntity {
      * - 값이 있으면 탈퇴 처리된 계정
      */
     private LocalDateTime deletedAt;
+
+    /** RefreshToken 엔티티 제거 후 통합 */
+    @Column(length = 512)
+    private String refreshToken;
 }
