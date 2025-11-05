@@ -76,6 +76,7 @@ public class SecurityConfig {
                                 "/v1/auth/signup",
                                 "/v1/auth/login",
                                 "/v1/auth/verify/**",
+                                "/api/courseupdate/**",
                                 "/error").permitAll()
                                 // 그 외는 JWT 인증 필요
                                 .anyRequest().authenticated()
