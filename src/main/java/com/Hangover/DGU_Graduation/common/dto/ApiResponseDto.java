@@ -12,8 +12,8 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public class ApiResponseDto<T> {
 
-    @Schema(description = "HTTP 상태 코드", example = "200")
-    private int status;
+    @Schema(description = "요청 성공 여부", example = "true")
+    private final boolean success;
 
     @Schema(description = "응답 메시지", example = "성공")
     private String message;
@@ -26,11 +26,12 @@ public class ApiResponseDto<T> {
     /**
      * 성공 응답 (상태 코드 지정, 메시지는 기본 "성공")
      */
-    public static <T> ApiResponseDto<T> success(int status, T data) {
-        return new ApiResponseDto<>(status, "성공", data);
+    public static <T> ApiResponseDto<T> success(T data) {
+        return new ApiResponseDto<>(true, "성공", data);
     }
 
-    public static <T> ApiResponseDto<T> success(int status, String message, T data) {
-        return new ApiResponseDto<>(status, message, data);
+    public static <T> ApiResponseDto<T> success(String message, T data) {
+        return new ApiResponseDto<>(true, message, data);
     }
+
 }

@@ -36,5 +36,4 @@ out/
 ### VS Code ###
 .vscode/
 
-### Custom (local config 제외) ###
 application-local.yml
