@@ -1,5 +1,7 @@
 package com.Hangover.DGU_Graduation.document.domain;
 
+import com.Hangover.DGU_Graduation.auth.entity.User;
+import com.Hangover.DGU_Graduation.common.domain.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -9,10 +11,14 @@ import java.time.LocalDateTime;
 
 @Entity @Table(name = "documents")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class DocumentEntity {
+public class DocumentEntity extends BaseTimeEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name="user_id",nullable=false)
+    private User user;
 
     // 메타
     private Short curriculumYear;                    // 적용연도
@@ -35,6 +41,4 @@ public class DocumentEntity {
     @Column(columnDefinition = "MEDIUMTEXT")
     private String finalText;
 
-    @CreationTimestamp private LocalDateTime createdAt;
-    @UpdateTimestamp  private LocalDateTime updatedAt;
 }

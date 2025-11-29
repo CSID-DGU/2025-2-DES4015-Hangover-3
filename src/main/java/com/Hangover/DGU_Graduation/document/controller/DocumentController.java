@@ -1,51 +1,59 @@
 package com.Hangover.DGU_Graduation.document.controller;
 
-import com.Hangover.DGU_Graduation.document.DraftStore;
-import com.Hangover.DGU_Graduation.document.PdfParser;
+import com.Hangover.DGU_Graduation.auth.security.UserPrincipal;
+import com.Hangover.DGU_Graduation.common.exception.CustomException;
+import com.Hangover.DGU_Graduation.document.converter.PdfToDraftConverter;
+import com.Hangover.DGU_Graduation.document.converter.ConfirmToDocumentConverter;
 import com.Hangover.DGU_Graduation.document.dto.request.ConfirmRequestDto;
 import com.Hangover.DGU_Graduation.document.dto.response.DocumentResponseDto;
 import com.Hangover.DGU_Graduation.document.dto.response.ParseResponseDto;
-import com.Hangover.DGU_Graduation.document.service.DocumentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Optional;
+
+import static com.Hangover.DGU_Graduation.auth.exception.UserErrorCode.USER_NOT_FOUND;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/documents")
 public class DocumentController {
 
-    private final PdfParser pdfParser;
-    private final DraftStore draftStore;
-    private final DocumentService documentService;
+    private final PdfToDraftConverter pdfToDraftConverter;
+    private final ConfirmToDocumentConverter confirmToDocumentConverter;
 
-    /** 1) PDF 업로드 → 파싱 → 사용자에게 텍스트 제공(수정 전) */
+    /** 1) PDF 업로드 → Draft 생성 */
     @PostMapping(path = "/parse", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ParseResponseDto parse(@RequestPart("file") MultipartFile file) throws Exception {
-        var result = pdfParser.parse(file.getInputStream());
-        var draft = draftStore.create(file.getBytes(), file.getOriginalFilename(),
-                file.getContentType(), result.text, result.pageCount);
+    public ParseResponseDto parse(@RequestPart("file") MultipartFile file,
+                                  @AuthenticationPrincipal UserPrincipal principal) throws Exception {
+
+        Long userId = Optional.ofNullable(principal)
+                .map(UserPrincipal::getUser)
+                .map(u -> u.getId())
+                .orElseThrow(() -> new CustomException(USER_NOT_FOUND, "사용자 없음"));
+
+        var draft = pdfToDraftConverter.convert(file, userId);
+
 
         return ParseResponseDto.builder()
                 .sessionId(draft.getSessionId())
                 .parsedText(draft.getParsedText())
-                .pageCount(result.pageCount)
+                .pageCount(draft.getPageCount())
                 .filename(draft.getFilename())
                 .sizeBytes(draft.getSizeBytes())
                 .mimeType(draft.getMimeType())
+                .userId(principal.getUser().getId())
                 .build();
     }
 
     /** 2) 사용자 수정 후 확정 저장 */
     @PostMapping("/confirm")
     public DocumentResponseDto confirm(@Valid @RequestBody ConfirmRequestDto req) {
-        var draft = draftStore.get(req.getSessionId());
-        if (draft == null) throw new IllegalArgumentException("세션 만료 또는 존재하지 않음: " + req.getSessionId());
-
-        var saved = documentService.saveFinal(draft, req);
-        draftStore.remove(req.getSessionId());
-        return saved;
+        return confirmToDocumentConverter.convert(req);
     }
 }

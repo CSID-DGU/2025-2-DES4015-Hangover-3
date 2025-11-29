@@ -1,0 +1,19 @@
+package com.Hangover.DGU_Graduation.fastapi.domain;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Getter
+@NoArgsConstructor
+@Entity
+@Table(name = "user_completed")
+public class UserCompleted {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private Long userId;         // 사용자 ID
+    private String courseNo;     // 들은 과목번호
+}

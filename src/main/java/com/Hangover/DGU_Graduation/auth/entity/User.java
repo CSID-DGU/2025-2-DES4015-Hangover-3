@@ -1,10 +1,15 @@
 package com.Hangover.DGU_Graduation.auth.entity;
 
 import com.Hangover.DGU_Graduation.common.domain.BaseTimeEntity;
+import com.Hangover.DGU_Graduation.document.domain.DocumentEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import javax.swing.text.Document;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 
 @Entity
 @Getter @Setter
@@ -43,4 +48,8 @@ public class User extends BaseTimeEntity {
     /** RefreshToken 엔티티 제거 후 통합 */
     @Column(length = 512)
     private String refreshToken;
+
+    @OneToMany(mappedBy = "user",cascade = CascadeType.REMOVE, orphanRemoval = true)
+    @Builder.Default
+    private List<DocumentEntity> documents = new ArrayList<>();
 }

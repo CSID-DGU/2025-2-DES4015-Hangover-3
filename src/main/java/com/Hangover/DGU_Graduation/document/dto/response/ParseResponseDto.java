@@ -10,4 +10,5 @@ public class ParseResponseDto {
     private String filename;
     private long sizeBytes;
     private String mimeType;
+    private Long userId;
 }
