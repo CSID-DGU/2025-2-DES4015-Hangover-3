@@ -32,6 +32,6 @@ jwt:
 
 app:
   host:
-    url: https://너의-도메인
+    url:  ${APP_HOST_URL}
   mail:
-    from: no-reply@hangover.com
+    from: ${APP_MAIL_FROM}
