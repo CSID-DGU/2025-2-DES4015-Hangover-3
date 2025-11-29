@@ -1,27 +1,14 @@
 spring:
   application:
     name: hangover-project
-
-  jpa:
-    hibernate:
-      ddl-auto: update   # ?? ????? update (??? validate ??)
-    properties:
-      hibernate:
-        format_sql: true
-        dialect: org.hibernate.dialect.MySQLDialect
-    open-in-view: false
-
-logging:
-  level:
-    org.hibernate.SQL: debug
-    org.hibernate.type.descriptor.sql.BasicBinder: trace
+  profiles:
+    active: local
 
 server:
   port: 8081
 
----
-spring:
-  config:
-    activate:
-      on-profile: local
-
+logging:
+  level:
+    root: info
+    org.hibernate.SQL: debug
+    org.hibernate.type.descriptor.sql.BasicBinder: trace
