@@ -3,7 +3,6 @@ name : CI/CD # 1. 깃허브 액션 이름 변경
 on:
   push:
     branches :
-      - 11-feat-cicd
       - main
 
 jobs:
@@ -42,7 +41,7 @@ jobs:
           aws_access_key: ${{secrets.AWS_ACCESS_KEY_ID}}
           aws_secret_key: ${{secrets.AWS_SECRET_ACCESS_KEY}}
           application_name: graduation
-          environment_name: Graduation-env
+          environment_name: Graduation-new-env
           version_label: github-action-${{steps.current-time.outputs.formattedTime}}
           region: ap-northeast-2
           deployment_package: ./build/libs/${{env.artifact}}
