@@ -2,7 +2,9 @@ name : CI/CD # 1. 깃허브 액션 이름 변경
 
 on:
   push:
-    branches : [ main ]
+    branches :
+      - 11-feat-cicd
+      - main
 
 jobs:
   build:
