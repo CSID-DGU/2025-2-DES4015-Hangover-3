@@ -50,3 +50,6 @@ test {
 	enabled = false
 }
 
+jar {
+	enabled = false
+}
