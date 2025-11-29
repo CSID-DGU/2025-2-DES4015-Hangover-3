@@ -75,7 +75,8 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/v1/auth/signup",
                                 "/v1/auth/login",
-                                "/v1/auth/verify/**",
+                                "/v1/auth/verify-code",
+                                "/v1/auth/send-code",
                                 "/error").permitAll()
                                 // 그 외는 JWT 인증 필요
                                 .anyRequest().authenticated()
