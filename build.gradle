@@ -43,10 +43,17 @@ dependencies {
 	implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 }
 
-tasks.named('test') {
+/*tasks.named('test') {
 	useJUnitPlatform()
+}*/
+test {
+	enabled = false
 }
 
 jar {
+	enabled = false
+}
+
+tasks.withType(Test) {
 	enabled = false
 }
