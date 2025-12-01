@@ -14,9 +14,9 @@ public class UserCompleted {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long userId;         // 사용자 ID
-    private String courseNo;     // 들은 과목번호
-    private Integer credit;      // <== 요기
+    private Long userId;
+    private String courseNo;
+    private Integer credit;
     private String area;
     private String englishYn;
 }

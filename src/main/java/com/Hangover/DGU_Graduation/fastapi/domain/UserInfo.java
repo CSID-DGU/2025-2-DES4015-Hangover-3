@@ -17,7 +17,6 @@ public class UserInfo {
 
     private String studentId;      // 학번
     private String program;        // 전공명
-    private int catalogYear;       // 학번년도
-    private int toeic;             // 토익점수
+    private int catalogYear;       // 적용 학번 년도
+    private int toeic;             // 토익 점수
 }
-

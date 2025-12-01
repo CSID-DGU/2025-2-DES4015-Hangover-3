@@ -34,9 +34,8 @@ public class DocumentController {
                                   @AuthenticationPrincipal UserPrincipal principal) throws Exception {
 
         Long userId = Optional.ofNullable(principal)
-                .map(UserPrincipal::getUser)
-                .map(u -> u.getId())
-                .orElseThrow(() -> new CustomException(USER_NOT_FOUND, "사용자 없음"));
+                .map(p -> p.getUser().getId())
+                .orElseThrow(() -> new CustomException(USER_NOT_FOUND));
 
         var draft = pdfToDraftConverter.convert(file, userId);
 
@@ -46,25 +45,18 @@ public class DocumentController {
                 .filename(draft.getFilename())
                 .sizeBytes(draft.getSizeBytes())
                 .mimeType(draft.getMimeType())
-                .userId(userId) // 굳이 주지 않아도 되지만, 프론트 참고용
+                .userId(userId)
                 .build();
     }
 
-    /**
-     * 2) 사용자 수정 후 확정 저장
-     */
     @PostMapping("/confirm")
     public DocumentResponseDto confirm(@Valid @RequestBody ConfirmRequestDto req,
                                        @AuthenticationPrincipal UserPrincipal principal) {
 
         Long userId = Optional.ofNullable(principal)
-                .map(UserPrincipal::getUser)
-                .map(u -> u.getId())
-                .orElseThrow(() -> new CustomException(USER_NOT_FOUND, "사용자 없음"));
+                .map(p -> p.getUser().getId())
+                .orElseThrow(() -> new CustomException(USER_NOT_FOUND));
 
-        System.out.println("CONFIRM REQUEST = " + req);
-
-        // confirmToDocumentConverter 내부에서 draftStore.get(userId) 기반으로 동작
         return confirmToDocumentConverter.convert(req, userId);
     }
 }
