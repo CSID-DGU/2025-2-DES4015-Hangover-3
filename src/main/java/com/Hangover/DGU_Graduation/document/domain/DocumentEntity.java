@@ -41,4 +41,6 @@ public class DocumentEntity extends BaseTimeEntity {
     @Column(columnDefinition = "MEDIUMTEXT")
     private String finalText;
 
+
+
 }
