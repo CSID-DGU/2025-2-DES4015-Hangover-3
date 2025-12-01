@@ -129,6 +129,12 @@
   }
 }
 
+@layer utilities {
+  .outline-ring\/50 {
+    outline-color: color-mix(in oklch, var(--ring) 50%, transparent);
+  }
+}
+
 /**
  * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
  */
