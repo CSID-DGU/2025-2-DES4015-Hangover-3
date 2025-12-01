@@ -16,4 +16,7 @@ public class UserCompleted {
 
     private Long userId;         // 사용자 ID
     private String courseNo;     // 들은 과목번호
+    private Integer credit;      // <== 요기
+    private String area;
+    private String englishYn;
 }
