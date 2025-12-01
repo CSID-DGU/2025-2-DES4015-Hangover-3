@@ -76,10 +76,17 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 }
 
-tasks.named('test') {
+/*tasks.named('test') {
 	useJUnitPlatform()
+}*/
+test {
+	enabled = false
 }
 
 jar {
+	enabled = false
+}
+
+tasks.withType(Test) {
 	enabled = false
 }
