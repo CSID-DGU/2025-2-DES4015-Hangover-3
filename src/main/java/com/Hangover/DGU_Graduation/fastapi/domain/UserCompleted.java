@@ -3,10 +3,12 @@ package com.Hangover.DGU_Graduation.fastapi.domain;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @NoArgsConstructor
 @Entity
+@Setter
 @Table(name = "user_completed")
 public class UserCompleted {
 

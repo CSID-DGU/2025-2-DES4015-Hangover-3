@@ -8,4 +8,6 @@ import java.util.List;
 public interface UserCompletedRepository extends JpaRepository<UserCompleted, Long> {
 
     List<UserCompleted> findByUserId(Long userId);
+    void deleteByUserId(Long userId);
+
 }
