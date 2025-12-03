@@ -6,8 +6,6 @@ import lombok.*;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ConfirmRequestDto {
 
-    @NotBlank
-    private String sessionId;
 
     @NotNull
     private Short curriculumYear;
