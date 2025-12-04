@@ -4,7 +4,7 @@ plugins {
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
-group = 'com.Hangover'
+group = 'com.hangover'           // 패키지 네이밍 규칙에 맞게 소문자
 version = '0.0.1-SNAPSHOT'
 description = 'Demo project for Spring Boot'
 
@@ -20,27 +20,60 @@ configurations {
 	}
 }
 
+/**
+ * 로깅 충돌 방지:
+ * - Spring Boot는 기본적으로 logback을 사용
+ * - slf4j-simple, commons-logging이 클래스패스에 있으면 충돌/경고
+ */
+configurations.all {
+	exclude group: 'org.slf4j', module: 'slf4j-simple'
+	exclude group: 'commons-logging', module: 'commons-logging'
+}
+
 repositories {
 	mavenCentral()
 }
 
 dependencies {
+	// API 문서 (Swagger UI)
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-security'
-	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+
+	// Spring Boot Starters
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
+
+	// JWT
+	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+	runtimeOnly   'io.jsonwebtoken:jjwt-impl:0.11.5'
+	runtimeOnly   'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+	// PDF 테이블 추출 (Tabula) — pdfbox/fontbox는 transitive로 따라옵니다
+	implementation 'technology.tabula:tabula:1.0.5'
+
+	// 유틸
+	implementation 'commons-codec:commons-codec:1.16.1'
+
+	// DB Drivers
+	runtimeOnly 'com.mysql:mysql-connector-j'          // 최신 표기법
+	runtimeOnly 'com.microsoft.sqlserver:mssql-jdbc'   // 필요 시 유지
+
+	// Lombok
 	compileOnly 'org.projectlombok:lombok'
-	runtimeOnly 'com.mysql:mysql-connector-j'
 	annotationProcessor 'org.projectlombok:lombok'
+
+	// (선택) @ConfigurationProperties 메타 생성
+	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+	// Test
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-	implementation 'org.springframework.boot:spring-boot-starter-mail'
-	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
-	implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
-	implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 }
 
 /*tasks.named('test') {
