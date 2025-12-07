@@ -14,16 +14,18 @@ public class VerificationCode {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String code; // 5자리 인증코드
+    @Column(nullable = false)
+    private String email;
 
-    private LocalDateTime expiresAt; // 만료시간
+    @Column(nullable = false)
+    private String code;  // 5자리 영문+숫자
 
-    private boolean used; // 이미 사용되었는지 여부
+    @Column(nullable = false)
+    private LocalDateTime expiresAt;
 
+    @Column(nullable = false)
+    private boolean used;
+
+    @Column(nullable = false)
     private LocalDateTime createdAt;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-
 }
