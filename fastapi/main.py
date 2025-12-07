@@ -115,6 +115,7 @@ class RecommendRequest(BaseModel):
     taken_courses: List[str]
     keywords: str
     all_courses: List[str]
+    career_goal: Optional[str] = None
 
 class S(TypedDict, total=False):
     payload: Dict[str, Any]
@@ -167,7 +168,7 @@ def n_apply_exclusions(state):
     taken = {c.get("code") for c in courses}
 
     dropped = []
-    warnings = []  # 추가: 개론을 안 들었어도 경고 출력
+    warnings = []  # 🔥 추가: 개론을 안 들었어도 경고 출력
 
     for ex in INTRO_EXCLUSIONS:
         triggers = ex["triggers"]
@@ -858,39 +859,57 @@ def compare(req: CompareRequest):
 # OpenAI 기반 과목 추천 API
 # ----------------------------
 def recommend_any(req: RecommendRequest):
+    # career_goal이 안 들어오면 "미지정"으로 처리
+    career_goal = req.career_goal or "미지정"
+
     prompt = f"""
-당신은 동국대학교 학생을 위한 과목 추천 전문가입니다.
+당신은 동국대학교 학생 맞춤형 강의 추천 시스템의 AI 엔진입니다.
+당신의 역할은 학생의 이수 과목, 관심사, 졸업요건, 학과 특성을 기반으로 가장 적합한 다음 학기 수강과목을 추천하는 전문가입니다.
 
-[입력 정보]
-- 학생이 이미 수강 완료한 과목 목록: {req.taken_courses}
-- 추천 후보 전체 과목 목록: {req.all_courses}
-- 학생의 관심 키워드: "{req.keywords}"
+[입력 데이터]
+- 이미 수강 완료한 과목 목록(taken_courses): {req.taken_courses}
+- 추천 가능 전체 과목 목록(all_courses): {req.all_courses}
+- 학생 관심 키워드(keywords): "{req.keywords}"
+- 학생 진로/희망 분야(career_goal): "{career_goal or "미지정"}"
+- 해당 과목이 속한 학과 또는 트랙 정보(제공 가능 시 기준 반영)
 
-[요구 사항]
-1. 이미 수강한 과목(taken_courses)에 포함된 코드는 추천하지 마세요.
-2. all_courses 중에서 최대 5개 이내로 추천하세요.
-3. 각 추천 과목마다 "왜 이 학생에게 적합한지" 간단한 한국어 이유를 써 주세요.
-4. 과목 이름을 모르면 "코드 기반 추천"이라고 언급해도 됩니다.
+[추천 규칙 및 우선순위 기준]
+1. taken_courses 목록에 포함된 과목은 절대 추천하지 마세요.
+2. 추천 과목 수는 **최대 5개**를 넘기지 마세요.
+3. 아래 기준을 순서대로 고려해 추천하세요:
+   - (우선순위 1) 학생의 관심 키워드와 높은 연관성이 있는 과목
+   - (우선순위 2) 학생의 희망 진로 분야와 능력적 요구사항에 맞는 과목
+   - (우선순위 3) 선행 과목 → 심화 과목 학습 흐름(논리적 학습 경로)을 충족하는 과목
+   - (우선순위 4) 전공필수/핵심 교양/트랙 필수 과목(해당 시)
+   - (우선순위 5) 학생이 아직 접하지 않은 분야 중 확장성(미래 연계성)이 높은 과목
+4. 추천 사유(reason 작성 기준):
+   - 한두 문장 길이
+   - "왜 이 학생에게 의미 있는 선택인지"를 논리적으로 설명
+   - 해당 과목이 어떤 능력을 강화시키는지 또는 진로에 어떤 이점이 있는지 포함
+5. 과목 이름이 제공되지 않은 경우 "코드 기반 추천"이라고 적고, 이유는 기능/주제 키워드 기반으로 작성하세요.
+6. 출력은 **순수 JSON만** 제공하세요. 추가 설명, 코드블록(```), 마크다운, 해석, 문장 등은 포함하지 마세요.
 
 [출력 형식(JSON)]
-{
+{{
   "recommendations": [
-    {
+    {{
       "course": "과목코드",
       "reason": "추천 이유"
-    }
+    }}
   ]
-}
+}}
 """
+
 
     try:
         response = client.responses.create(
             model="gpt-4.1-mini",
-            input=prompt,
-            response_format={"type": "json_object"},
+            input=prompt,   #  response_format 제거
         )
-        raw = response.output[0].content[0].text
+
+        raw = response.output_text
         data = json.loads(raw)
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OpenAI API error: {e}")
 
@@ -899,7 +918,22 @@ def recommend_any(req: RecommendRequest):
 
     return data
 
-
 @app.post("/recommend")
 def recommend(req: RecommendRequest):
-    return recommend_any(req)
+
+    # 1) 이미 들은 과목 제외
+    filtered_courses = [
+        c for c in req.all_courses
+        if c not in req.taken_courses
+    ]
+
+    # 2) recommend_any()에 넘길 데이터 재구성
+    enriched_req = RecommendRequest(
+        taken_courses=req.taken_courses,
+        keywords=req.keywords,
+        career_goal=req.career_goal,
+        all_courses=filtered_courses
+    )
+
+    # 3) GPT 호출
+    return recommend_any(enriched_req)
